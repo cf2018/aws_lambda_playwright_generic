@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playwright Generic Tool - Web Interface</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+    <style>
+        .code-editor {
+            font-family: 'Courier New', monospace;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            resize: vertical;
+        }
+        .result-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 15px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+        }
+        .success {
+            border-left: 4px solid #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-left: 4px solid #dc3545;
+            background-color: #f8d7da;
+        }
+        .loading {
+            border-left: 4px solid #007bff;
+            background-color: #d1ecf1;
+        }
+        .example-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .example-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+        .example-card.color1 {
+            background-color: #f8f9fa;
+        }
+        .example-card.color2 {
+            background-color: #e9f7ef;
+        }
+        .example-card.color3 {
+            background-color: #fef9e7;
+        }
+        .example-card.color4 {
+            background-color: #f5eef8;
+        }
+        .example-card.color5 {
+            background-color: #e8f8f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="text-center mb-4">
+                    <h1 class="display-4">🎭 Playwright Generic Tool</h1>
+                    <p class="lead">Execute Playwright code remotely through a web interface</p>
+                </div>
+                
+                <!-- Main Form -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Code Execution</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="codeForm">
+                            <div class="mb-3">
+                                <label for="code" class="form-label">Playwright Code</label>
+                                <textarea 
+                                    class="form-control code-editor" 
+                                    id="code" 
+                                    rows="10" 
+                                    placeholder="Enter your Playwright code here..."
+                                    required>{{ default_code|safe }}</textarea>
+                                <div class="form-text">
+                                    Available variables: <code>page</code>, <code>context</code>, <code>browser</code>, <code>p</code>, <code>asyncio</code>, <code>json</code>
+                                </div>
+                            </div>
+                            
+                            <!-- Browser Options -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Browser Options</label>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="headless" checked>
+                                        <label class="form-check-label" for="headless">
+                                            Headless mode
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="slowMo">
+                                        <label class="form-check-label" for="slowMo">
+                                            Slow motion (1000ms)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Viewport Size</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="width" placeholder="Width" value="1920">
+                                        <span class="input-group-text">×</span>
+                                        <input type="number" class="form-control" id="height" placeholder="Height" value="1080">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearCode()">Clear</button>
+                                <button type="submit" class="btn btn-primary" id="executeBtn">
+                                    <span id="executeSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                                    <span id="executeText">Execute Code</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Result Display -->
+                <div id="resultContainer" class="result-container d-none">
+                    <h6>Result:</h6>
+                    <pre id="resultContent"></pre>
+                </div>
+                
+                <!-- cURL Command Display -->
+                <div id="curlContainer" class="mb-3">
+                    <label class="form-label">cURL Command for this Example</label>
+                    <!-- cURL will be injected here -->
+                </div>
+                
+                <!-- Examples Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Quick Examples</h5>
+                        <small class="text-muted">Click on any example to load it into the editor</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="examplesContainer">
+                            <!-- Examples will be loaded here -->
+                        </div>
+                        
+                        <!-- Additional hardcoded examples for quick testing -->
+                        <div class="row mt-3">
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card example-card h-100" onclick="loadHardcodedExample('basic')">
+                                    <div class="card-body">
+                                        <h6 class="card-title">🌐 Basic Navigation</h6>
+                                        <p class="card-text small">Navigate to a website and get page information</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card example-card h-100" onclick="loadHardcodedExample('screenshot')">
+                                    <div class="card-body">
+                                        <h6 class="card-title">📸 Take Screenshot</h6>
+                                        <p class="card-text small">Capture a screenshot of a webpage</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card example-card h-100" onclick="loadHardcodedExample('form')">
+                                    <div class="card-body">
+                                        <h6 class="card-title">📝 Form Interaction</h6>
+                                        <p class="card-text small">Fill out a form and interact with elements</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    
+    <script>
+        // Load examples on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExamples();
+        });
+
+        // Form submission handler
+        document.getElementById('codeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            executeCode();
+        });
+
+        async function executeCode() {
+            const code = document.getElementById('code').value;
+            const headless = document.getElementById('headless').checked;
+            const slowMo = document.getElementById('slowMo').checked;
+            const width = parseInt(document.getElementById('width').value) || 1920;
+            const height = parseInt(document.getElementById('height').value) || 1080;
+            
+            if (!code.trim()) {
+                alert('Please enter some code to execute.');
+                return;
+            }
+
+            // Show loading state
+            const executeBtn = document.getElementById('executeBtn');
+            const executeSpinner = document.getElementById('executeSpinner');
+            const executeText = document.getElementById('executeText');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultContent = document.getElementById('resultContent');
+            
+            executeBtn.disabled = true;
+            executeSpinner.classList.remove('d-none');
+            executeText.textContent = 'Executing...';
+            
+            resultContainer.className = 'result-container loading';
+            resultContainer.classList.remove('d-none');
+            resultContent.textContent = 'Executing code, please wait...';
+
+            try {
+                const payload = {
+                    code: code,
+                    browser_options: {
+                        headless: headless,
+                        args: ["--no-sandbox", "--disable-dev-shm-usage"]
+                    },
+                    context_options: {
+                        viewport: { width: width, height: height }
+                    }
+                };
+
+                if (slowMo) {
+                    payload.browser_options.slow_mo = 1000;
+                }
+
+                const response = await fetch('/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultContainer.className = 'result-container success';
+                    resultContent.textContent = JSON.stringify(result, null, 2);
+                } else {
+                    resultContainer.className = 'result-container error';
+                    resultContent.textContent = JSON.stringify(result, null, 2);
+                }
+            } catch (error) {
+                resultContainer.className = 'result-container error';
+                resultContent.textContent = `Error: ${error.message}`;
+            } finally {
+                executeBtn.disabled = false;
+                executeSpinner.classList.add('d-none');
+                executeText.textContent = 'Execute Code';
+            }
+        }
+
+        function generateCurlCommand(code, headless=true, slowMo=false, width=1920, height=1080) {
+            const payload = {
+                code: code,
+                browser_options: {
+                    headless: headless,
+                    args: ["--no-sandbox", "--disable-dev-shm-usage"]
+                },
+                context_options: {
+                    viewport: { width: width, height: height }
+                }
+            };
+            if (slowMo) {
+                payload.browser_options.slow_mo = 1000;
+            }
+            // Use JSON.stringify for the payload, then escape only single quotes for shell
+            let data = JSON.stringify(payload);
+            data = data.replace(/'/g, "'\\''");
+            return `curl -X POST http://localhost:5001/execute -H "Content-Type: application/json" -d '${data}'`;
+        }
+
+        function showCurlCommand(curl) {
+            let curlBox = document.getElementById('curlBox');
+            if (!curlBox) {
+                curlBox = document.createElement('pre');
+                curlBox.id = 'curlBox';
+                curlBox.className = 'mt-2 p-2 bg-light border rounded text-break';
+                document.getElementById('curlContainer').appendChild(curlBox);
+            }
+            curlBox.textContent = curl;
+        }
+
+        async function loadExamples() {
+            try {
+                const response = await fetch('/examples');
+                const data = await response.json();
+                const examplesContainer = document.getElementById('examplesContainer');
+                examplesContainer.innerHTML = '';
+                const colorClasses = ['color1', 'color2', 'color3', 'color4', 'color5'];
+                let i = 0;
+                for (const key in data.examples) {
+                    const colorClass = colorClasses[i % colorClasses.length];
+                    const card = createExampleCard(key, data.examples[key], colorClass);
+                    examplesContainer.appendChild(card);
+                    i++;
+                }
+            } catch (error) {
+                console.error('Error loading examples:', error);
+            }
+        }
+
+        function createExampleCard(key, example, colorClass) {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4 mb-3';
+            col.innerHTML = `
+                <div class="card example-card h-100 ${colorClass}" onclick="loadExample('${key}')">
+                    <div class="card-body">
+                        <h6 class="card-title">${formatTitle(key)}</h6>
+                        <p class="card-text small">${example.description}</p>
+                    </div>
+                </div>
+            `;
+            return col;
+        }
+
+        function formatTitle(key) {
+            return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        async function loadExample(key) {
+            try {
+                const response = await fetch('/examples');
+                const data = await response.json();
+                if (data.examples && data.examples[key]) {
+                    const code = data.examples[key].code.trim();
+                    document.getElementById('code').value = code;
+                    // Get current options
+                    const headless = document.getElementById('headless').checked;
+                    const slowMo = document.getElementById('slowMo').checked;
+                    const width = parseInt(document.getElementById('width').value) || 1920;
+                    const height = parseInt(document.getElementById('height').value) || 1080;
+                    const curl = generateCurlCommand(code, headless, slowMo, width, height);
+                    showCurlCommand(curl);
+                }
+            } catch (error) {
+                console.error('Error loading example:', error);
+            }
+        }
+
+        function clearCode() {
+            document.getElementById('code').value = '';
+            document.getElementById('resultContainer').classList.add('d-none');
+        }
+
+        function loadHardcodedExample(type) {
+            const examples = {
+                'basic': `# Basic website navigation and information gathering
+await page.goto('https://example.com')
+title = await page.title()
+url = page.url
+result = {
+    'title': title,
+    'url': url,
+    'success': True
+}`,
+                'screenshot': `# Take a screenshot of a webpage
+await page.goto('https://httpbin.org/html')
+screenshot = await page.screenshot()
+result = {
+    'screenshot_taken': True,
+    'screenshot_size_bytes': len(screenshot),
+    'page_title': await page.title(),
+    'success': True
+}`,
+                'form': `# Form interaction example
+await page.goto('https://httpbin.org/forms/post')
+await page.fill('input[name="custname"]', 'John Doe')
+await page.fill('input[name="custtel"]', '1234567890')
+await page.fill('input[name="custemail"]', 'john@example.com')
+# Note: We're not actually submitting to avoid POST request
+title = await page.title()
+result = {
+    'form_filled': True,
+    'page_title': title,
+    'success': True
+}`
+            };
+            
+            if (examples[type]) {
+                document.getElementById('code').value = examples[type];
+                document.getElementById('resultContainer').classList.add('d-none');
+            }
+        }
+    </script>
+</body>
+</html>

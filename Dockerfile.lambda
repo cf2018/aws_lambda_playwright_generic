@@ -1,0 +1,18 @@
+# Dockerfile for AWS Lambda Deployment
+FROM mcr.microsoft.com/playwright/python:v1.40.0-focal
+
+WORKDIR /var/task
+
+# Copy application code
+COPY . .
+
+# Install dependencies
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Download AWS Lambda Runtime Interface Emulator
+ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /aws-lambda-rie
+RUN chmod +x /aws-lambda-rie
+
+# Set the Lambda handler
+ENTRYPOINT ["/aws-lambda-rie", "python", "-m", "awslambdaric", "app.lambda_handler"]

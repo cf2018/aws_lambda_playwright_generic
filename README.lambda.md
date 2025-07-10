@@ -3,8 +3,8 @@
 This README is for deploying and running the project as an AWS Lambda function (container image).
 
 ## Features
-- Compatible with AWS Lambda and API Gateway
-- Same API and code execution as Flask version
+- Compatible with AWS Lambda (no API Gateway required)
+- Same code execution as Flask version
 
 ## Quickstart (Local Lambda Testing)
 
@@ -14,20 +14,36 @@ This README is for deploying and running the project as an AWS Lambda function (
    ```
 2. **Run the Lambda container locally:**
    ```bash
-   docker run -p 9000:8080 playwright-lambda
+   docker run -p 9001:8080 playwright-lambda
    ```
 3. **Invoke the Lambda function locally:**
    ```bash
-   curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" \
-     -d '{"body": "{ ...your JSON payload... }"}'
+   curl -XPOST "http://localhost:9001/2015-03-31/functions/function/invocations" \
+     -H "Content-Type: application/json" \
+     -d '{"code": "await page.goto(\\"https://www.w3schools.com/html/html_page_title.asp\\")\\ntitle = await page.title()\\nresult = {\\"title\\": title}\nreturn result"}'
    ```
-   - The payload should be a stringified JSON object in the `body` field (as required by Lambda proxy integration).
+   **Expected response:**
+   ```json
+   {
+     "success": true,
+     "result": {"title": "HTML Page Title"},
+     "error": null,
+     "metadata": {
+       "url": "https://www.w3schools.com/html/html_page_title.asp",
+       "viewport": {"width": 0, "height": 0}
+     }
+   }
+   ```
 
-## Deploying to AWS Lambda
-- Push the image to ECR and create a Lambda function from the container image.
+4. **Deploy to AWS Lambda**
+- Push the image to ECR and create a Lambda function from it.
 - Set the handler to `app.lambda_handler`.
-- Use API Gateway to expose an HTTP endpoint if needed.
+- Invoke directly with a JSON payload as above (no API Gateway needed).
 
 ## Notes
 - This mode is best for serverless, scalable deployments on AWS.
-- The Lambda handler wraps the Flask app using a WSGI adapter (see `app.py`).
+- The Lambda handler is a plain Python function for direct invocation.
+
+---
+
+For more usage examples, see `client_example.py` and the main README.
